@@ -1,18 +1,19 @@
 import express from 'express';
 import cors from 'cors';
-import { MongoClient, ServerApiVersion } from 'mongodb';
+import { MongoClient } from 'mongodb';
 import * as dotenv from 'dotenv';
+import { toNodeHandler } from 'better-auth/node';
+import { createAuth } from './src/lib/auth.js';
+
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 5000;
 
-// Middleware
 app.use(cors({
-  origin: ['http://localhost:5173'],
-  credentials: true
+  origin: [process.env.CLIENT_URL || 'http://localhost:3000'],
+  credentials: true,
 }));
-app.use(express.json());
 
 const uri = process.env.MONGODB_URI;
 
@@ -29,15 +30,19 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     await client.connect();
-    await client.db("admin").command({ ping: 1 });
-    console.log("Successfully connected to MongoDB!");
+    await client.db('admin').command({ ping: 1 });
+    console.log('Successfully connected to MongoDB!');
 
-    const db = client.db("ideavault");
-    const ideasCollection = db.collection("ideas");
-    const usersCollection = db.collection("users");
-    const commentsCollection = db.collection("comments");
+    const db = client.db('ideavault');
 
-    // ─── Routes ───────────────────────────────────────────
+    // Initialize Better Auth after DB is connected and env is loaded
+    const auth = createAuth(db);
+    app.all('/api/auth/*splat', toNodeHandler(auth));
+
+    app.use(express.json());
+
+    const ideasCollection = db.collection('ideas');
+    const commentsCollection = db.collection('comments');
 
     app.get('/', (req, res) => {
       res.send('IdeaVault Server is running!');
@@ -46,7 +51,16 @@ async function run() {
     // Ideas - Get all
     app.get('/api/ideas', async (req, res) => {
       try {
-        const ideas = await ideasCollection.find().sort({ createdAt: -1 }).toArray();
+        const { email, category, search, limit } = req.query;
+        let query = {};
+        if (email) query.authorEmail = email;
+        if (category) query.category = category;
+        if (search) query.title = { $regex: search, $options: 'i' };
+        const ideas = await ideasCollection
+          .find(query)
+          .sort({ createdAt: -1 })
+          .limit(limit ? parseInt(limit) : 0)
+          .toArray();
         res.json(ideas);
       } catch (error) {
         res.status(500).json({ message: error.message });
@@ -150,21 +164,23 @@ async function run() {
       }
     });
 
-    // Users - Save/update on login
-    app.post('/api/users', async (req, res) => {
+    // Comments by user
+    app.get('/api/user-comments', async (req, res) => {
       try {
-        const { email, name, photoURL } = req.body;
-        const existing = await usersCollection.findOne({ email });
-        if (existing) return res.json({ message: 'User already exists', user: existing });
-        const result = await usersCollection.insertOne({ email, name, photoURL, createdAt: new Date() });
-        res.status(201).json(result);
+        const { email } = req.query;
+        if (!email) return res.status(400).json({ message: 'Email required' });
+        const comments = await commentsCollection
+          .find({ userEmail: email })
+          .sort({ createdAt: -1 })
+          .toArray();
+        res.json(comments);
       } catch (error) {
         res.status(500).json({ message: error.message });
       }
     });
 
   } catch (error) {
-    console.error("MongoDB connection error:", error);
+    console.error('MongoDB connection error:', error);
     process.exit(1);
   }
 }
