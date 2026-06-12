@@ -12,10 +12,59 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 5000;
 
+// Configure CORS properly
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'https://ideavault-client-three.vercel.app',
+  'https://ideavault-client.vercel.app',
+  /\.vercel\.app$/,
+];
+
 app.use(cors({
-  origin: [process.env.CLIENT_URL || 'http://localhost:3000'],
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+
+    const isAllowed = allowedOrigins.some(allowed => {
+      if (allowed instanceof RegExp) {
+        return allowed.test(origin);
+      }
+      return allowed === origin;
+    });
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.log('Blocked by CORS:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'Cookie',
+    'Set-Cookie'
+  ],
+  exposedHeaders: ['Set-Cookie'],
+  maxAge: 86400,
 }));
+
+// Handle preflight requests
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cookie');
+    return res.status(200).end();
+  }
+  next();
+});
 
 const uri = process.env.MONGODB_URI;
 
@@ -37,13 +86,33 @@ async function run() {
 
     const db = client.db('ideavault');
 
-    // Initialize Better Auth after DB is connected and env is loaded
     const auth = createAuth(db);
-    app.all('/api/auth/*splat', toNodeHandler(auth));
+
+    // Better Auth with proper cookie handling and logging - ONLY ONCE
+    app.use('/api/auth', (req, res, next) => {
+      // Add CORS headers to auth routes
+      const origin = req.headers.origin;
+      if (origin && [
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'https://ideavault-client-three.vercel.app',
+        'https://ideavault-client.vercel.app',
+      ].includes(origin)) {
+        res.header('Access-Control-Allow-Origin', origin);
+      }
+      res.header('Access-Control-Allow-Credentials', 'true');
+      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cookie');
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`Auth ${req.method} ${req.path}`);
+      }
+      next();
+    }, toNodeHandler(auth));
+
 
     app.use(express.json());
 
-    // Generate JWT token — using /api/jwt/token to avoid Better Auth conflict
+    // Generate JWT token
     app.post('/api/jwt/token', async (req, res) => {
       try {
         const { email, name } = req.body;
@@ -203,7 +272,7 @@ async function run() {
   }
 }
 
-run();
+run().catch(console.error);
 
 app.listen(port, () => {
   console.log(`Server is running on port: ${port}`);
