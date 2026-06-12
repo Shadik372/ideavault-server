@@ -5,7 +5,7 @@ export function createAuth(db) {
   return betterAuth({
     database: mongodbAdapter(db),
     secret: process.env.BETTER_AUTH_SECRET,
-    baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:5000',
+    baseURL: process.env.BETTER_AUTH_URL || 'https://ideavault-server.onrender.com',
     trustedOrigins: [
       'http://localhost:3000',
       'http://localhost:3001',
@@ -28,14 +28,23 @@ export function createAuth(db) {
         photoURL: { type: 'string', required: false },
       },
     },
-    // Remove the advanced config
+    advanced: {
+      cookiePrefix: 'better-auth',
+      crossSubDomainCookies: {
+        enabled: true,
+      },
+      defaultCookieAttributes: {
+        secure: true,
+        httpOnly: true,
+        sameSite: 'none',
+      },
+    },
     rateLimit: {
       enabled: false,
     },
-    // Add session configuration
     session: {
-      expiresIn: 30 * 24 * 60 * 60, // 30 days
-      updateAge: 24 * 60 * 60, // 24 hours
+      expiresIn: 30 * 24 * 60 * 60,
+      updateAge: 24 * 60 * 60,
     },
   });
 }

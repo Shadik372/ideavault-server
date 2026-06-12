@@ -88,7 +88,7 @@ async function run() {
 
     const auth = createAuth(db);
 
-    // Better Auth with proper cookie handling and logging - ONLY ONCE
+    // Better Auth with proper cookie handling
     app.use('/api/auth', (req, res, next) => {
       // Add CORS headers to auth routes
       const origin = req.headers.origin;
@@ -103,12 +103,14 @@ async function run() {
       res.header('Access-Control-Allow-Credentials', 'true');
       res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
       res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cookie');
-      if (process.env.NODE_ENV !== 'production') {
-        console.log(`Auth ${req.method} ${req.path}`);
+      
+      // Handle preflight for auth routes
+      if (req.method === 'OPTIONS') {
+        return res.status(200).end();
       }
+      
       next();
     }, toNodeHandler(auth));
-
 
     app.use(express.json());
 
