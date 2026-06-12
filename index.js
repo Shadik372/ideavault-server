@@ -4,6 +4,8 @@ import { MongoClient } from 'mongodb';
 import * as dotenv from 'dotenv';
 import { toNodeHandler } from 'better-auth/node';
 import { createAuth } from './src/lib/auth.js';
+import jwt from 'jsonwebtoken';
+import { verifyToken } from './src/middleware/verifyToken.js';
 
 dotenv.config();
 
@@ -40,6 +42,22 @@ async function run() {
     app.all('/api/auth/*splat', toNodeHandler(auth));
 
     app.use(express.json());
+
+    // Generate JWT token — using /api/jwt/token to avoid Better Auth conflict
+    app.post('/api/jwt/token', async (req, res) => {
+      try {
+        const { email, name } = req.body;
+        if (!email) return res.status(400).json({ message: 'Email required' });
+        const token = jwt.sign(
+          { email, name },
+          process.env.JWT_SECRET,
+          { expiresIn: '7d' }
+        );
+        res.json({ token });
+      } catch (error) {
+        res.status(500).json({ message: error.message });
+      }
+    });
 
     const ideasCollection = db.collection('ideas');
     const commentsCollection = db.collection('comments');
@@ -79,8 +97,8 @@ async function run() {
       }
     });
 
-    // Ideas - Create
-    app.post('/api/ideas', async (req, res) => {
+    // Ideas - Create (protected)
+    app.post('/api/ideas', verifyToken, async (req, res) => {
       try {
         const idea = { ...req.body, createdAt: new Date(), updatedAt: new Date() };
         const result = await ideasCollection.insertOne(idea);
@@ -90,8 +108,8 @@ async function run() {
       }
     });
 
-    // Ideas - Update
-    app.put('/api/ideas/:id', async (req, res) => {
+    // Ideas - Update (protected)
+    app.put('/api/ideas/:id', verifyToken, async (req, res) => {
       try {
         const { ObjectId } = await import('mongodb');
         const result = await ideasCollection.updateOne(
@@ -104,8 +122,8 @@ async function run() {
       }
     });
 
-    // Ideas - Delete
-    app.delete('/api/ideas/:id', async (req, res) => {
+    // Ideas - Delete (protected)
+    app.delete('/api/ideas/:id', verifyToken, async (req, res) => {
       try {
         const { ObjectId } = await import('mongodb');
         const result = await ideasCollection.deleteOne({ _id: new ObjectId(req.params.id) });
@@ -128,8 +146,8 @@ async function run() {
       }
     });
 
-    // Comments - Add
-    app.post('/api/comments', async (req, res) => {
+    // Comments - Add (protected)
+    app.post('/api/comments', verifyToken, async (req, res) => {
       try {
         const comment = { ...req.body, createdAt: new Date(), updatedAt: new Date() };
         const result = await commentsCollection.insertOne(comment);
@@ -139,8 +157,8 @@ async function run() {
       }
     });
 
-    // Comments - Update
-    app.put('/api/comments/:id', async (req, res) => {
+    // Comments - Update (protected)
+    app.put('/api/comments/:id', verifyToken, async (req, res) => {
       try {
         const { ObjectId } = await import('mongodb');
         const result = await commentsCollection.updateOne(
@@ -153,8 +171,8 @@ async function run() {
       }
     });
 
-    // Comments - Delete
-    app.delete('/api/comments/:id', async (req, res) => {
+    // Comments - Delete (protected)
+    app.delete('/api/comments/:id', verifyToken, async (req, res) => {
       try {
         const { ObjectId } = await import('mongodb');
         const result = await commentsCollection.deleteOne({ _id: new ObjectId(req.params.id) });
@@ -164,7 +182,7 @@ async function run() {
       }
     });
 
-    // Comments by user
+    // Comments by user email
     app.get('/api/user-comments', async (req, res) => {
       try {
         const { email } = req.query;
