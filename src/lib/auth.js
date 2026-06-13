@@ -11,6 +11,7 @@ export function createAuth(db) {
       'http://localhost:5000',
       'https://ideavault-client-sooty.vercel.app',
       'https://ideavault-server-a2po.onrender.com',
+      'https://ideavault-server-production.up.railway.app',
     ],
     emailAndPassword: {
       enabled: true,
