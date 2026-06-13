@@ -33,5 +33,11 @@ export function createAuth(db) {
         photoURL: { type: 'string', required: false },
       },
     },
+    advanced: {
+      defaultCookieAttributes: {
+        sameSite: "none",
+        secure: true,
+      }
+    }
   });
 }
