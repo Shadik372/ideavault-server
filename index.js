@@ -94,8 +94,7 @@ async function run() {
       if (origin && [
         'http://localhost:3000',
         'http://localhost:3001',
-        'https://ideavault-client-three.vercel.app',
-        'https://ideavault-client.vercel.app',
+        'https://ideavault-client-sooty.vercel.app',
       ].includes(origin)) {
         res.header('Access-Control-Allow-Origin', origin);
       }

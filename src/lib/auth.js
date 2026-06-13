@@ -9,7 +9,7 @@ export function createAuth(db) {
     trustedOrigins: [
       'http://localhost:3000',
       'http://localhost:5000',
-      'https://ideavault-client-three.vercel.app',
+      'https://ideavault-client-sooty.vercel.app',
       'https://ideavault-server-a2po.onrender.com',
     ],
     emailAndPassword: {
