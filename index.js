@@ -16,8 +16,7 @@ const port = process.env.PORT || 5000;
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
-  'https://ideavault-client-three.vercel.app',
-  'https://ideavault-client.vercel.app',
+  'https://ideavault-client-sooty.vercel.app',
   /\.vercel\.app$/,
 ];
 
