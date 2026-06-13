@@ -2,8 +2,6 @@ import { betterAuth } from 'better-auth';
 import { mongodbAdapter } from 'better-auth/adapters/mongodb';
 
 export function createAuth(db) {
-  const isDev = process.env.NODE_ENV !== 'production';
-  
   return betterAuth({
     database: mongodbAdapter(db),
     secret: process.env.BETTER_AUTH_SECRET,
@@ -22,16 +20,12 @@ export function createAuth(db) {
       google: {
         clientId: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        redirectURI: `${process.env.BETTER_AUTH_URL}/api/auth/callback/google`,
       },
     },
-    advanced: {
-      useSecureCookies: false,
-      defaultCookieAttributes: {
-        sameSite: isDev ? 'lax' : 'none',
-        secure: !isDev,
-        httpOnly: true,
-        path: '/',
+    account: {
+      accountLinking: {
+        enabled: true,
+        trustedProviders: ['google', 'email-password'],
       },
     },
     user: {
