@@ -2,17 +2,18 @@ import { betterAuth } from 'better-auth';
 import { mongodbAdapter } from 'better-auth/adapters/mongodb';
 
 export function createAuth(db) {
+  const isDev = process.env.NODE_ENV !== 'production';
+  
   return betterAuth({
     database: mongodbAdapter(db),
     secret: process.env.BETTER_AUTH_SECRET,
-    baseURL: process.env.BETTER_AUTH_URL || 'https://ideavault-server.onrender.com',
+    baseURL: process.env.BETTER_AUTH_URL,
     trustedOrigins: [
       'http://localhost:3000',
-      'http://localhost:3001',
+      'http://localhost:5000',
       'https://ideavault-client-three.vercel.app',
-      'https://ideavault-client.vercel.app',
-      process.env.CLIENT_URL,
-    ].filter(Boolean),
+      'https://ideavault-server-a2po.onrender.com',
+    ],
     emailAndPassword: {
       enabled: true,
       minPasswordLength: 6,
@@ -21,30 +22,22 @@ export function createAuth(db) {
       google: {
         clientId: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        redirectURI: `${process.env.BETTER_AUTH_URL}/api/auth/callback/google`,
+      },
+    },
+    advanced: {
+      useSecureCookies: false,
+      defaultCookieAttributes: {
+        sameSite: isDev ? 'lax' : 'none',
+        secure: !isDev,
+        httpOnly: true,
+        path: '/',
       },
     },
     user: {
       additionalFields: {
         photoURL: { type: 'string', required: false },
       },
-    },
-    advanced: {
-      cookiePrefix: 'better-auth',
-      crossSubDomainCookies: {
-        enabled: true,
-      },
-      defaultCookieAttributes: {
-        secure: true,
-        httpOnly: true,
-        sameSite: 'none',
-      },
-    },
-    rateLimit: {
-      enabled: false,
-    },
-    session: {
-      expiresIn: 30 * 24 * 60 * 60,
-      updateAge: 24 * 60 * 60,
     },
   });
 }
